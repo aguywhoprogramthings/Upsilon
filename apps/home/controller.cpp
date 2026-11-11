@@ -162,7 +162,7 @@ bool Controller::handleEvent(Ion::Events::Event event) {
         return handleEvent(Ion::Events::OK);
       }
       // Else, select the app
-      return m_view.selectableTableView()->selectCellAtLocation(column, row);
+      m_view.selectableTableView()->selectCellAtLocation(column, row); return handleEvent(Ion::Events::OK);
     }
   }
 
