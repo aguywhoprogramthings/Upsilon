@@ -88,9 +88,9 @@ Controller::Controller(Responder * parentResponder, SelectableTableViewDataSourc
 }
 
 static constexpr Ion::Events::Event home_fast_navigation_events[] = {
-    Ion::Events::Seven, Ion::Events::Eight, Ion::Events::Nine,
-    Ion::Events::Four, Ion::Events::Five, Ion::Events::Six,
     Ion::Events::One, Ion::Events::Two, Ion::Events::Three,
+    Ion::Events::Four, Ion::Events::Five, Ion::Events::Six,
+    Ion::Events::Seven, Ion::Events::Eight, Ion::Events::Nine,
     Ion::Events::Zero, Ion::Events::Dot, Ion::Events::EE
 };
 
