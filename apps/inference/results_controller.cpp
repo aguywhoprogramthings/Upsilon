@@ -1,5 +1,4 @@
 #include "results_controller.h"
-#include "statistic_controller.h"
 #include "../shared/poincare_helpers.h"
 #include <poincare/preferences.h>
 #include <poincare/print_float.h>
@@ -17,7 +16,7 @@ ResultsController::ResultsController(Responder * parentResponder) :
 }
 
 const char * ResultsController::title() {
-  return I18n::translate(StatisticController::Label(m_statistic));
+  return I18n::translate(I18n::Message::InferenceResults);
 }
 
 void ResultsController::didBecomeFirstResponder() {
