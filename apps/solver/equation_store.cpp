@@ -528,8 +528,10 @@ EquationStore::Error EquationStore::cubicPolynomialSolve(Expression exactSolutio
     bool rationalRootPlaced = false;
     int n = 0;
     for (int j = 0; j < numberOfQuadraticSolutions; j++) {
-      // A double root of the cubic is listed once
-      if (quadraticSolutions[j].isIdenticalTo(rationalRoot)) {
+      /* A double root of the cubic is listed once. Compare exactly: the
+       * simplified solutions are beautified (-1 becomes Opposite(1)). */
+      Expression difference = Subtraction::Builder(quadraticSolutions[j].clone(), rationalRoot.clone()).simplify(reductionContext);
+      if (!difference.isUninitialized() && difference.nullStatus(context) == ExpressionNode::NullStatus::Null) {
         continue;
       }
       // Increasing order; a complex (NAN) quadratic root goes after the real one
