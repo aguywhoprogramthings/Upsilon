@@ -546,8 +546,8 @@ EquationStore::Error EquationStore::cubicPolynomialSolve(Expression exactSolutio
     exactSolutions[n++] = Decimal::Builder<double>(roots[i]);
   }
   if (numberOfRealRoots == 1) {
-    exactSolutions[n++] = Subtraction::Builder(Decimal::Builder<double>(re), Multiplication::Builder(Decimal::Builder<double>(im), Constant::Builder(UCodePointMathematicalBoldSmallI)));
-    exactSolutions[n++] = Addition::Builder(Decimal::Builder<double>(re), Multiplication::Builder(Decimal::Builder<double>(im), Constant::Builder(UCodePointMathematicalBoldSmallI)));
+    exactSolutions[n++] = Subtraction::Builder(Decimal::Builder<double>(re), Multiplication::Builder(Decimal::Builder<double>(im), Poincare::Constant::Builder(UCodePointMathematicalBoldSmallI)));
+    exactSolutions[n++] = Addition::Builder(Decimal::Builder<double>(re), Multiplication::Builder(Decimal::Builder<double>(im), Poincare::Constant::Builder(UCodePointMathematicalBoldSmallI)));
   }
   exactSolutions[n++] = delta;
   m_numberOfSolutions = n;
