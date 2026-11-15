@@ -19,6 +19,7 @@ void solve_and_process_error(std::initializer_list<const char *> equations, T &&
   Shared::GlobalContext globalContext;
   EquationStore equationStore;
   for (const char * equation : equations) {
+    quiz_print(equation); // temporary: locate the failing equation in CI logs
     Ion::Storage::Record::ErrorStatus err = equationStore.addEmptyModel();
     quiz_assert_print_if_failure(err == Ion::Storage::Record::ErrorStatus::None, equation);
     Ion::Storage::Record record = equationStore.recordAtIndex(equationStore.numberOfModels()-1);
