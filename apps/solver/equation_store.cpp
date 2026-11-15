@@ -17,6 +17,11 @@
 #include <poincare/square_root.h>
 #include <poincare/power.h>
 #include <poincare/undefined.h>
+#include <poincare/decimal.h>
+#include <ion/unicode/code_point.h>
+#include <algorithm>
+#include <cmath>
+#include <stdint.h>
 
 using namespace Poincare;
 using namespace Shared;
@@ -241,12 +246,18 @@ EquationStore::Error EquationStore::privateExactSolve(Poincare::Context * contex
           replaceFunctionsButNotSymbols ?
             ExpressionNode::SymbolicComputation::ReplaceDefinedFunctionsWithDefinitions :
             ExpressionNode::SymbolicComputation::ReplaceAllDefinedSymbolsWithDefinition);
+    error = Error::RequireApproximateSolution;
+    m_polynomialDegree = degree;
     if (degree == 2) {
-      // Polynomial degree <= 2
       m_type = Type::PolynomialMonovariable;
       error = oneDimensionalPolynomialSolve(exactSolutions, exactSolutionsApproximations, polynomialCoefficients, degree, context);
-    } else {
-      // Step 4. Monovariable non-polynomial or polynomial with degree > 2
+    } else if (degree == 3) {
+      m_type = Type::PolynomialMonovariable;
+      error = cubicPolynomialSolve(exactSolutions, exactSolutionsApproximations, polynomialCoefficients, context);
+    }
+    if (error == Error::RequireApproximateSolution) {
+      /* Step 4. Monovariable non-polynomial, polynomial with degree > 3 or
+       * cubic with non-real coefficients */
       m_type = Type::Monovariable;
       m_intervalApproximateSolutions[0] = -10;
       m_intervalApproximateSolutions[1] = 10;
@@ -366,70 +377,184 @@ EquationStore::Error EquationStore::oneDimensionalPolynomialSolve(Expression exa
     exactSolutions[i].simplifyAndApproximate(&exactSolutions[i], &exactSolutionsApproximations[i], context, updatedComplexFormat(context), Poincare::Preferences::sharedPreferences()->angleUnit(), GlobalPreferences::sharedGlobalPreferences()->unitFormat());
   }
   return Error::NoError;
-#if 0
-  if (degree == 3) {
-    Expression * a = coefficients[3];
-    Expression * b = coefficients[2];
-    Expression * c = coefficients[1];
-    Expression * d = coefficients[0];
-    // Delta = b^2*c^2+18abcd-27a^2*d^2-4ac^3-4db^3
-    Expression * mult0Operands[2] = {new Power::Builder(b->clone(), new Rational::Builder(2), false), new Power::Builder(c->clone(), new Rational::Builder(2), false)};
-    Expression * mult1Operands[5] = {new Rational::Builder(18), a->clone(), b->clone(), c->clone(), d->clone()};
-    Expression * mult2Operands[3] = {new Rational::Builder(-27), new Power::Builder(a->clone(), new Rational::Builder(2), false), new Power::Builder(d->clone(), new Rational::Builder(2), false)};
-    Expression * mult3Operands[3] = {new Rational::Builder(-4), a->clone(), new Power::Builder(c->clone(), new Rational::Builder(3), false)};
-    Expression * mult4Operands[3] = {new Rational::Builder(-4), d->clone(), new Power::Builder(b->clone(), new Rational::Builder(3), false)};
-    Expression * add0Operands[5] = {new Multiplication::Builder(mult0Operands, 2, false), new Multiplication::Builder(mult1Operands, 5, false), new Multiplication::Builder(mult2Operands, 3, false), new Multiplication::Builder(mult3Operands, 3, false), new Multiplication::Builder(mult4Operands, 3, false)};
-    Expression * delta = new Addition(add0Operands, 5, false);
-    PoincareHelpers::Simplify(&delta, *context);
-    // Delta0 = b^2-3ac
-    Expression * mult5Operands[3] = {new Rational::Builder(3), a->clone(), c->clone()};
-    Expression * delta0 = new Subtraction::Builder(new Power::Builder(b->clone(), new Rational::Builder(2), false), new Multiplication::Builder(mult5Operands, 3, false), false);
-    Reduce(&delta0, *context);
-    if (delta->nullStatus(context) == ExpressionNode::NullStatus::Null) {
-      if (delta0->nullStatus(context) == ExpressionNode::NullStatus::Null) {
-        // delta0 = 0 && delta = 0 --> x0 = -b/(3a)
-        delete delta0;
-        m_exactSolutions[0] = new Opposite::Builder(new Division::Builder(b, new Multiplication::Builder(new Rational::Builder(3), a, false), false), false);
-        m_numberOfSolutions = 1;
-        delete c;
-        delete d;
-      } else {
-        // delta = 0 --> x0 = (9ad-bc)/(2delta0)
-        //           --> x1 = (4abc-9a^2d-b^3)/(a*delta0)
-        Expression * mult6Operands[3] = {new Rational::Builder(9), a, d};
-        m_exactSolutions[0] = new Division::Builder(new Subtraction::Builder(new Multiplication::Builder(mult6Operands, 3, false), new Multiplication::Builder(b, c, false), false), new Multiplication::Builder(new Rational::Builder(2), delta0, false), false);
-        Expression * mult7Operands[4] = {new Rational::Builder(4), a->clone(), b->clone(), c->clone()};
-        Expression * mult8Operands[3] = {new Rational::Builder(-9), new Power::Builder(a->clone(), new Rational::Builder(2), false), d->clone()};
-        Expression * add1Operands[3] = {new Multiplication::Builder(mult7Operands, 4, false), new Multiplication::Builder(mult8Operands,3, false), new Opposite::Builder(new Power::Builder(b->clone(), new Rational::Builder(3), false), false)};
-        m_exactSolutions[1] = new Division::Builder(new Addition(add1Operands, 3, false), new Multiplication::Builder(a->clone(), delta0, false), false);
-        m_numberOfSolutions = 2;
-      }
+}
+
+// Cubic: numeric roots first, then an exact rational root if there is one
+
+static double cubicValue(const double c[4], double x) {
+  return ((c[3] * x + c[2]) * x + c[1]) * x + c[0];
+}
+
+/* Real roots of c[3]x^3+c[2]x^2+c[1]x+c[0] in increasing order. Returns 3, or 1
+ * when the two other roots are the complex conjugates re +/- i*im. */
+static int cubicNumericRoots(const double c[4], double roots[3], double * re, double * im) {
+  double bound = 1.0 + std::max(std::fabs(c[2]), std::max(std::fabs(c[1]), std::fabs(c[0]))) / std::fabs(c[3]);
+  double low = -bound, high = bound;
+  bool lowIsPositive = cubicValue(c, low) > 0.0;
+  for (int k = 0; k < 200; k++) {
+    double middle = (low + high) / 2.0;
+    if ((cubicValue(c, middle) > 0.0) == lowIsPositive) {
+      low = middle;
     } else {
-      // delta1 = 2b^3-9abc+27a^2*d
-      Expression * mult9Operands[4] = {new Rational::Builder(-9), a, b, c};
-      Expression * mult10Operands[3] = {new Rational::Builder(27), new Power::Builder(a->clone(), new Rational::Builder(2), false), d};
-      Expression * add2Operands[3] = {new Multiplication::Builder(new Rational::Builder(2), new Power::Builder(b->clone(), new Rational::Builder(3), false), false), new Multiplication::Builder(mult9Operands, 4, false), new Multiplication::Builder(mult10Operands, 3, false)};
-      Expression * delta1 = new Addition(add2Operands, 3, false);
-      // C = Root((delta1+sqrt(-27a^2*delta))/2, 3)
-      Expression * mult11Operands[3] = {new Rational::Builder(-27), new Power::Builder(a->clone(), new Rational::Builder(2), false), (*delta)->clone()};
-      Expression * c = new Power::Builder(new Division::Builder(new Addition(delta1, new SquareRoot(new Multiplication::Builder(mult11Operands, 3, false), false), false), new Rational::Builder(2), false), new Rational::Builder(1,3), false);
-      Expression * unary3roots[2] = {new Addition(new Rational::Builder(-1,2), new Division::Builder(new Multiplication::Builder(new SquareRoot(new Rational::Builder(3), false), new Constant::Builder(UCodePointMathematicalBoldSmallI), false), new Rational::Builder(2), false), false), new Subtraction::Builder(new Rational::Builder(-1,2), new Division::Builder(new Multiplication::Builder(new SquareRoot(new Rational::Builder(3), false), new Constant::Builder(UCodePointMathematicalBoldSmallI), false), new Rational::Builder(2), false), false)};
-      // x_k = -1/(3a)*(b+C*z+delta0/(zC)) with z = unary cube root
-      for (int k = 0; k < 3; k++) {
-        Expression * ccopy = c;
-        Expression * delta0copy = delta0;
-        if (k < 2) {
-          ccopy = new Multiplication::Builder(c->clone(), unary3roots[k], false);
-          delta0copy = delta0->clone();
-        }
-        Expression * add3Operands[3] = {b->clone(), ccopy, new Division::Builder(delta0copy, ccopy->clone(), false)};
-        m_exactSolutions[k] = new Multiplication::Builder(new Division::Builder(new Rational::Builder(-1), new Multiplication::Builder(new Rational::Builder(3), a->clone(), false), false), new Addition(add3Operands, 3, false), false);
-      }
-      m_numberOfSolutions = 3;
+      high = middle;
     }
-    m_exactSolutions[m_numberOfSolutions] = delta;
   }
-#endif
+  roots[0] = (low + high) / 2.0;
+  // Deflate to q2*x^2+q1*x+q0
+  double q2 = c[3];
+  double q1 = c[2] + q2 * roots[0];
+  double q0 = c[1] + q1 * roots[0];
+  double discriminant = q1 * q1 - 4.0 * q2 * q0;
+  if (discriminant < 0.0) {
+    *re = -q1 / (2.0 * q2);
+    *im = std::sqrt(-discriminant) / (2.0 * std::fabs(q2));
+    return 1;
+  }
+  roots[1] = (-q1 - std::sqrt(discriminant)) / (2.0 * q2);
+  roots[2] = (-q1 + std::sqrt(discriminant)) / (2.0 * q2);
+  for (int i = 0; i < 3; i++) {
+    // Newton steps on the cubic itself remove the deflation error
+    for (int k = 0; k < 3; k++) {
+      double derivative = (3.0 * c[3] * roots[i] + 2.0 * c[2]) * roots[i] + c[1];
+      if (derivative != 0.0) {
+        roots[i] -= cubicValue(c, roots[i]) / derivative;
+      }
+    }
+  }
+  for (int i = 0; i < 2; i++) {
+    for (int j = 0; j < 2 - i; j++) {
+      if (roots[j] > roots[j + 1]) {
+        double tmp = roots[j];
+        roots[j] = roots[j + 1];
+        roots[j + 1] = tmp;
+      }
+    }
+  }
+  return 3;
+}
+
+// Continued fractions: p/q with q <= 1000 matching x, if any
+static bool rationalApproximation(double x, native_int_t * numerator, native_int_t * denominator) {
+  constexpr int64_t k_maxDenominator = 1000;
+  if (!(std::fabs(x) < 1e6)) {
+    return false;
+  }
+  int64_t h0 = 1, h1 = 0, k0 = 0, k1 = 1;
+  double v = x;
+  for (int i = 0; i < 20; i++) {
+    double a = std::floor(v);
+    int64_t h2 = static_cast<int64_t>(a) * h0 + h1;
+    int64_t k2 = static_cast<int64_t>(a) * k0 + k1;
+    if (k2 > k_maxDenominator) {
+      return false;
+    }
+    h1 = h0;
+    h0 = h2;
+    k1 = k0;
+    k0 = k2;
+    if (std::fabs(x - static_cast<double>(h0) / static_cast<double>(k0)) <= 1e-9 * (1.0 + std::fabs(x))) {
+      *numerator = static_cast<native_int_t>(h0);
+      *denominator = static_cast<native_int_t>(k0);
+      return true;
+    }
+    double fractional = v - a;
+    if (fractional < 1e-12) {
+      return false;
+    }
+    v = 1.0 / fractional;
+  }
+  return false;
+}
+
+EquationStore::Error EquationStore::cubicPolynomialSolve(Expression exactSolutions[k_maxNumberOfExactSolutions], Expression exactSolutionsApproximations[k_maxNumberOfExactSolutions], Expression coefficients[Expression::k_maxNumberOfPolynomialCoefficients], Context * context) {
+  /* Equation ax^3+bx^2+cx+d = 0, with coefficients[3] = a ... coefficients[0] = d */
+  Preferences::ComplexFormat complexFormat = updatedComplexFormat(context);
+  Preferences::AngleUnit angleUnit = Preferences::sharedPreferences()->angleUnit();
+  Preferences::UnitFormat unitFormat = GlobalPreferences::sharedGlobalPreferences()->unitFormat();
+  ExpressionNode::ReductionContext reductionContext(context, complexFormat, angleUnit, unitFormat, ExpressionNode::ReductionTarget::SystemForApproximation);
+  double c[4];
+  for (int i = 0; i < 4; i++) {
+    c[i] = coefficients[i].approximateToScalar<double>(context, complexFormat, angleUnit);
+    if (!std::isfinite(c[i])) {
+      // Complex or undefined coefficients: keep the interval search
+      return Error::RequireApproximateSolution;
+    }
+  }
+  if (c[3] == 0.0) {
+    return Error::RequireApproximateSolution;
+  }
+  Expression a = coefficients[3], b = coefficients[2], cc = coefficients[1], d = coefficients[0];
+  // Delta = b^2c^2 + 18abcd - 4ac^3 - 4b^3d - 27a^2d^2
+  Expression delta = Addition::Builder({
+    Multiplication::Builder(Power::Builder(b.clone(), Rational::Builder(2)), Power::Builder(cc.clone(), Rational::Builder(2))),
+    Multiplication::Builder({Rational::Builder(18), a.clone(), b.clone(), cc.clone(), d.clone()}),
+    Multiplication::Builder(Rational::Builder(-4), a.clone(), Power::Builder(cc.clone(), Rational::Builder(3))),
+    Multiplication::Builder(Rational::Builder(-4), Power::Builder(b.clone(), Rational::Builder(3)), d.clone()),
+    Multiplication::Builder(Rational::Builder(-27), Power::Builder(a.clone(), Rational::Builder(2)), Power::Builder(d.clone(), Rational::Builder(2)))
+  });
+  delta = delta.simplify(reductionContext);
+  if (delta.isUninitialized()) {
+    delta = Undefined::Builder();
+  }
+
+  double roots[3], re = NAN, im = NAN;
+  int numberOfRealRoots = cubicNumericRoots(c, roots, &re, &im);
+
+  // Exact branch: x0 = p/q is a root, the rest is (ax^2+(b+a*x0)x+(c+(b+a*x0)*x0))
+  for (int i = 0; i < numberOfRealRoots; i++) {
+    native_int_t p, q;
+    if (!rationalApproximation(roots[i], &p, &q)) {
+      continue;
+    }
+    Expression value = Addition::Builder({
+      Multiplication::Builder(a.clone(), Power::Builder(Rational::Builder(p, q), Rational::Builder(3))),
+      Multiplication::Builder(b.clone(), Power::Builder(Rational::Builder(p, q), Rational::Builder(2))),
+      Multiplication::Builder(cc.clone(), Rational::Builder(p, q)),
+      d.clone()
+    }).simplify(reductionContext);
+    if (value.isUninitialized() || value.nullStatus(context) != ExpressionNode::NullStatus::Null) {
+      continue;
+    }
+    Expression quadratic[Expression::k_maxNumberOfPolynomialCoefficients];
+    quadratic[2] = a.clone();
+    quadratic[1] = Addition::Builder(b.clone(), Multiplication::Builder(a.clone(), Rational::Builder(p, q))).simplify(reductionContext);
+    quadratic[0] = Addition::Builder(cc.clone(), Multiplication::Builder(quadratic[1].clone(), Rational::Builder(p, q))).simplify(reductionContext);
+    Expression quadraticSolutions[k_maxNumberOfExactSolutions];
+    Expression quadraticApproximations[k_maxNumberOfExactSolutions];
+    oneDimensionalPolynomialSolve(quadraticSolutions, quadraticApproximations, quadratic, 2, context);
+    int numberOfQuadraticSolutions = m_numberOfSolutions - 1; // without its delta
+    Expression rationalRoot = Rational::Builder(p, q);
+    int n = 0;
+    exactSolutions[n++] = rationalRoot.clone();
+    for (int j = 0; j < numberOfQuadraticSolutions; j++) {
+      // A double root of the cubic is listed once
+      if (!quadraticSolutions[j].isIdenticalTo(rationalRoot)) {
+        exactSolutions[n++] = quadraticSolutions[j];
+      }
+    }
+    exactSolutions[n++] = delta;
+    m_numberOfSolutions = n;
+    for (int j = 0; j < n; j++) {
+      exactSolutions[j].simplifyAndApproximate(&exactSolutions[j], &exactSolutionsApproximations[j], context, complexFormat, angleUnit, unitFormat);
+    }
+    return Error::NoError;
+  }
+
+  // Numeric branch: real roots, then the complex pair (dropped in Real mode)
+  int n = 0;
+  for (int i = 0; i < numberOfRealRoots; i++) {
+    exactSolutions[n++] = Decimal::Builder<double>(roots[i]);
+  }
+  if (numberOfRealRoots == 1) {
+    exactSolutions[n++] = Subtraction::Builder(Decimal::Builder<double>(re), Multiplication::Builder(Decimal::Builder<double>(im), Constant::Builder(UCodePointMathematicalBoldSmallI)));
+    exactSolutions[n++] = Addition::Builder(Decimal::Builder<double>(re), Multiplication::Builder(Decimal::Builder<double>(im), Constant::Builder(UCodePointMathematicalBoldSmallI)));
+  }
+  exactSolutions[n++] = delta;
+  m_numberOfSolutions = n;
+  for (int j = 0; j < n; j++) {
+    exactSolutions[j].simplifyAndApproximate(&exactSolutions[j], &exactSolutionsApproximations[j], context, complexFormat, angleUnit, unitFormat);
+  }
+  return Error::NoError;
 }
 
 void EquationStore::tidySolution() {

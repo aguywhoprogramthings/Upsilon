@@ -116,10 +116,9 @@ void GraphController::reloadBannerView() {
   // Set "x=..." or "xmean=..."
   legend = "x=";
   double x = m_cursor->x();
-  // Display a specific legend if the mean dot is selected
+  /* Mean dot: plain "x=" since "P(moyen)" already names it; the combining
+   * overline the original legend used is drawn as a box by the banner font. */
   if (*m_selectedDotIndex == m_store->numberOfPairsOfSeries(*m_selectedSeriesIndex)) {
-    // \xCC\x85 represents the combining overline ' ̅'
-    legend = "x\xCC\x85=";
     x = m_store->meanOfColumn(*m_selectedSeriesIndex, 0);
   }
   m_bannerView.abscissaSymbol()->setText(legend);
@@ -134,8 +133,6 @@ void GraphController::reloadBannerView() {
   legend = "y=";
   double y = m_cursor->y();
   if (*m_selectedDotIndex == m_store->numberOfPairsOfSeries(*m_selectedSeriesIndex)) {
-    // \xCC\x85 represents the combining overline ' ̅'
-    legend = "y\xCC\x85=";
     y = m_store->meanOfColumn(*m_selectedSeriesIndex, 1);
   }
   numberOfChar += strlcpy(buffer, legend, bufferSize);

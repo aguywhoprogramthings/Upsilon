@@ -51,6 +51,10 @@ public:
   int numberOfSolutions() const {
     return m_numberOfSolutions;
   }
+  // 2 or 3 when type() is PolynomialMonovariable, to label the discriminant
+  int polynomialDegree() const {
+    return m_polynomialDegree;
+  }
   /* Exact resolution */
   Error exactSolve(Poincare::Context * context, bool * replaceFunctionsButNotSymbols);
   /* The exact solutions are displayed in a table with 2 layouts: an exact
@@ -101,6 +105,7 @@ private:
   Error privateExactSolve(Poincare::Context * context, bool replaceFunctionsButNotSymbols);
   Error resolveLinearSystem(Poincare::Expression solutions[k_maxNumberOfExactSolutions], Poincare::Expression solutionApproximations[k_maxNumberOfExactSolutions], Poincare::Expression coefficients[k_maxNumberOfEquations][Poincare::Expression::k_maxNumberOfVariables], Poincare::Expression constants[k_maxNumberOfEquations], Poincare::Context * context);
   Error oneDimensionalPolynomialSolve(Poincare::Expression solutions[k_maxNumberOfExactSolutions], Poincare::Expression solutionApproximations[k_maxNumberOfExactSolutions], Poincare::Expression polynomialCoefficients[Poincare::Expression::k_maxNumberOfPolynomialCoefficients], int degree, Poincare::Context * context);
+  Error cubicPolynomialSolve(Poincare::Expression solutions[k_maxNumberOfExactSolutions], Poincare::Expression solutionApproximations[k_maxNumberOfExactSolutions], Poincare::Expression polynomialCoefficients[Poincare::Expression::k_maxNumberOfPolynomialCoefficients], Poincare::Context * context);
   void tidySolution();
   bool isExplicitlyComplex(Poincare::Context * context);
   Poincare::Preferences::ComplexFormat updatedComplexFormat(Poincare::Context * context);
@@ -110,6 +115,7 @@ private:
   char m_variables[Poincare::Expression::k_maxNumberOfVariables][Poincare::SymbolAbstract::k_maxNameSize];
   char m_userVariables[Poincare::Expression::k_maxNumberOfVariables][Poincare::SymbolAbstract::k_maxNameSize];
   int m_numberOfSolutions;
+  int m_polynomialDegree = 2;
   Poincare::Layout m_exactSolutionExactLayouts[k_maxNumberOfApproximateSolutions];
   Poincare::Layout m_exactSolutionApproximateLayouts[k_maxNumberOfExactSolutions];
   bool m_exactSolutionIdentity[k_maxNumberOfExactSolutions];

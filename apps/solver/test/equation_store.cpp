@@ -26,10 +26,9 @@ QUIZ_CASE(equation_solve) {
   );
   assert_solves_to("(x-3)^2=0", {"x=3", "delta=0"});
 
-  /* TODO: Cubic
-   * x^3-4x^2+6x-24=0
-   * x^3+x^2+1=0
-   * x^3-3x-2=0 */
+  // Cubic: a rational root, then the rest solved exactly as a quadratic
+  assert_solves_to("x^3-6x^2+11x-6=0", {"x=1", "x=2", "x=3", "delta=4"});
+  assert_solves_to("x^3-3x-2=0", {"x=-1", "x=2", "delta=0"});
 
   // Linear System
   assert_solves_to_infinite_solutions("x+y=0");

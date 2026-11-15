@@ -86,6 +86,8 @@ SolutionsController::SolutionsController(Responder * parentResponder, EquationSt
   m_delta2Layout = HorizontalLayout::Builder(VerticalOffsetLayout::Builder(CodePointLayout::Builder('2', KDFont::SmallFont), VerticalOffsetLayoutNode::Position::Superscript), LayoutHelper::String("-4ac", 4, KDFont::SmallFont));
   const char * deltaB = "Δ=b";
   static_cast<HorizontalLayout&>(m_delta2Layout).addOrMergeChildAtIndex(LayoutHelper::String(deltaB, strlen(deltaB), KDFont::SmallFont), 0, false);
+  // The cubic discriminant formula is too long for the symbol column
+  m_delta3Layout = LayoutHelper::String("Δ", strlen("Δ"), KDFont::SmallFont);
   for (int i = 0; i < k_numberOfExactValueCells; i++) {
     m_exactValueCells[i].setParentResponder(m_contentView.selectableTableView());
   }
@@ -183,7 +185,7 @@ void SolutionsController::willDisplayCellAtLocation(HighlightCell * cell, int i,
     if (m_equationStore->type() == EquationStore::Type::PolynomialMonovariable && j == m_equationStore->numberOfSolutions()-1) {
       // Formula of the discriminant
       EvenOddExpressionCell * deltaCell = static_cast<EvenOddExpressionCell *>(cell);
-      deltaCell->setLayout(m_delta2Layout);
+      deltaCell->setLayout(m_equationStore->polynomialDegree() == 3 ? m_delta3Layout : m_delta2Layout);
     } else {
       EvenOddBufferTextCell * symbolCell = static_cast<EvenOddBufferTextCell *>(cell);
       char bufferSymbol[Poincare::SymbolAbstract::k_maxNameSize+2]; // Holds at maximum the variable name + 2 digits (for 10)
