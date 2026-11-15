@@ -524,13 +524,24 @@ EquationStore::Error EquationStore::cubicPolynomialSolve(Expression exactSolutio
     oneDimensionalPolynomialSolve(quadraticSolutions, quadraticApproximations, quadratic, 2, context);
     int numberOfQuadraticSolutions = m_numberOfSolutions - 1; // without its delta
     Expression rationalRoot = Rational::Builder(p, q);
+    const double rationalRootValue = static_cast<double>(p) / static_cast<double>(q);
+    bool rationalRootPlaced = false;
     int n = 0;
-    exactSolutions[n++] = rationalRoot.clone();
     for (int j = 0; j < numberOfQuadraticSolutions; j++) {
       // A double root of the cubic is listed once
-      if (!quadraticSolutions[j].isIdenticalTo(rationalRoot)) {
-        exactSolutions[n++] = quadraticSolutions[j];
+      if (quadraticSolutions[j].isIdenticalTo(rationalRoot)) {
+        continue;
       }
+      // Increasing order; a complex (NAN) quadratic root goes after the real one
+      double value = quadraticSolutions[j].approximateToScalar<double>(context, complexFormat, angleUnit);
+      if (!rationalRootPlaced && !(value <= rationalRootValue)) {
+        exactSolutions[n++] = rationalRoot.clone();
+        rationalRootPlaced = true;
+      }
+      exactSolutions[n++] = quadraticSolutions[j];
+    }
+    if (!rationalRootPlaced) {
+      exactSolutions[n++] = rationalRoot.clone();
     }
     exactSolutions[n++] = delta;
     m_numberOfSolutions = n;
