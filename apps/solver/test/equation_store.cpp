@@ -105,6 +105,8 @@ QUIZ_CASE(equation_solve_complex_real) {
   assert_solves_to_error("x^2-√(-1)=0", EquationUnreal);
   assert_solves_to_error("x+√(-1)×√(-1)=0", EquationUnreal);
   assert_solves_to("root(-8,3)*x+3=0", "x=3/2");
+  // Cubic without rational root: one real root, shown as its approximation
+  assert_solves_to("x^3+x^2+1=0", {"x=-1.465571", "delta=-31"});
   reset_complex_format();
 }
 

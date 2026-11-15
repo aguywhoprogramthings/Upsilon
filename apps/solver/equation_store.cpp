@@ -566,6 +566,11 @@ EquationStore::Error EquationStore::cubicPolynomialSolve(Expression exactSolutio
   m_numberOfSolutions = n;
   for (int j = 0; j < n; j++) {
     exactSolutions[j].simplifyAndApproximate(&exactSolutions[j], &exactSolutionsApproximations[j], context, complexFormat, angleUnit, unitFormat);
+    if (j < n - 1) {
+      /* A numeric root has no exact form: simplifying its Decimal gives a huge
+       * fraction, so it is shown once, as its approximation. */
+      exactSolutions[j] = exactSolutionsApproximations[j].clone();
+    }
   }
   return Error::NoError;
 }
