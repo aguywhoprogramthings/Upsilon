@@ -15,6 +15,8 @@ public:
   View * view() override { return &m_selectableTableView; }
   const char * title() override;
   void didBecomeFirstResponder() override;
+  // The cells keep the previous statistic's labels and values until reloaded
+  void viewWillAppear() override { ViewController::viewWillAppear(); m_selectableTableView.reloadData(); }
   void setResults(Statistic statistic, const double results[NumberOfResults]);
   int numberOfRows() const override { return NumberOfResultsFor(m_statistic); }
   KDCoordinate cellHeight() override { return Metric::ParameterCellHeight; }
