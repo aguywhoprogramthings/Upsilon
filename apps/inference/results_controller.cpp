@@ -34,8 +34,11 @@ void ResultsController::setResults(Statistic statistic, const double results[Num
 void ResultsController::willDisplayCellForIndex(HighlightCell * cell, int index) {
   constexpr I18n::Message testLabels[NumberOfResults] = {I18n::Message::InferenceZ, I18n::Message::InferencePTwoSided, I18n::Message::InferencePLess, I18n::Message::InferencePGreater};
   constexpr I18n::Message intervalLabels[NumberOfResults] = {I18n::Message::InferenceEstimate, I18n::Message::InferenceMargin, I18n::Message::InferenceLower, I18n::Message::InferenceUpper};
+  constexpr I18n::Message chiSquaredLabels[] = {I18n::Message::InferenceChi, I18n::Message::InferenceDegreesOfFreedom, I18n::Message::InferencePValue};
   MessageTableCellWithBuffer * myCell = static_cast<MessageTableCellWithBuffer *>(cell);
-  if (!IsTest(m_statistic)) {
+  if (IsChiSquared(m_statistic)) {
+    myCell->setMessage(chiSquaredLabels[index]);
+  } else if (!IsTest(m_statistic)) {
     myCell->setMessage(intervalLabels[index]);
   } else if (index == 0 && UsesStudent(m_statistic)) {
     myCell->setMessage(I18n::Message::InferenceT);

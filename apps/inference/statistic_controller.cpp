@@ -15,9 +15,17 @@ I18n::Message StatisticController::Label(Statistic statistic) {
     I18n::Message::InferenceTestProportion,
     I18n::Message::InferenceTestMeanT,
     I18n::Message::InferenceTestMeanZ,
+    I18n::Message::InferenceTestTwoProportions,
+    I18n::Message::InferenceTestTwoMeansT,
+    I18n::Message::InferenceTestTwoMeansZ,
+    I18n::Message::InferenceTestChiSquaredGoodness,
+    I18n::Message::InferenceTestChiSquaredIndependence,
     I18n::Message::InferenceIntervalProportion,
     I18n::Message::InferenceIntervalMeanT,
-    I18n::Message::InferenceIntervalMeanZ
+    I18n::Message::InferenceIntervalMeanZ,
+    I18n::Message::InferenceIntervalTwoProportions,
+    I18n::Message::InferenceIntervalTwoMeansT,
+    I18n::Message::InferenceIntervalTwoMeansZ
   };
   return labels[statistic];
 }

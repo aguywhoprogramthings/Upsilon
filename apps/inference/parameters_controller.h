@@ -14,16 +14,18 @@ class ParametersController : public Shared::FloatParameterController<double> {
 public:
   ParametersController(Responder * parentResponder, InputEventHandlerDelegate * inputEventHandlerDelegate, double * values, ResultsController * resultsController);
   const char * title() override;
-  int numberOfRows() const override { return NumberOfParametersFor(m_statistic) + 1; }
+  int numberOfRows() const override { return NumberOfParametersFor(m_statistic, m_values) + 1; }
   void willDisplayCellForIndex(HighlightCell * cell, int index) override;
   void setStatistic(Statistic statistic) { m_statistic = statistic; }
 private:
+  // More than the rows that fit on screen; cells are reused while scrolling
+  constexpr static int k_numberOfCells = 8;
   HighlightCell * reusableParameterCell(int index, int type) override { return &m_cells[index]; }
-  int reusableParameterCellCount(int type) override { return MaxNumberOfParametersPerStatistic; }
-  double parameterAtIndex(int index) override { return m_values[ParameterFor(m_statistic, index)]; }
+  int reusableParameterCellCount(int type) override { return k_numberOfCells; }
+  double parameterAtIndex(int index) override { return m_values[ParameterFor(m_statistic, index, m_values)]; }
   bool setParameterAtIndex(int parameterIndex, double f) override;
   void buttonAction() override;
-  MessageTableCellWithEditableText m_cells[MaxNumberOfParametersPerStatistic];
+  MessageTableCellWithEditableText m_cells[k_numberOfCells];
   double * m_values;
   ResultsController * m_resultsController;
   Statistic m_statistic;

@@ -8,7 +8,7 @@
 
 namespace Inference {
 
-// Read-only list of the four computed values.
+// Read-only list of the computed values (four, or three for chi-squared).
 class ResultsController : public ViewController, public SimpleListViewDataSource, public SelectableTableViewDataSource {
 public:
   ResultsController(Responder * parentResponder);
@@ -16,7 +16,7 @@ public:
   const char * title() override;
   void didBecomeFirstResponder() override;
   void setResults(Statistic statistic, const double results[NumberOfResults]);
-  int numberOfRows() const override { return NumberOfResults; }
+  int numberOfRows() const override { return NumberOfResultsFor(m_statistic); }
   KDCoordinate cellHeight() override { return Metric::ParameterCellHeight; }
   HighlightCell * reusableCell(int index) override { return &m_cells[index]; }
   int reusableCellCount() const override { return NumberOfResults; }

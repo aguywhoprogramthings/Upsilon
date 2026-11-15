@@ -31,10 +31,17 @@ App::Descriptor * App::Snapshot::descriptor() {
 }
 
 void App::Snapshot::reset() {
-  //                                           p0   x  n   mu0 mean s  sigma C
-  constexpr double defaults[NumberOfParameters] = {0.5, 0, 30, 0, 0, 1, 1, 0.95};
   for (int i = 0; i < NumberOfParameters; i++) {
-    m_values[i] = defaults[i];
+    m_values[i] = 0.0; // successes, means, observed counts, table cells
+  }
+  m_values[P0] = 0.5;
+  m_values[SampleSize] = m_values[SampleSize2] = 30;
+  m_values[SampleDeviation] = m_values[SampleDeviation2] = 1;
+  m_values[PopulationDeviation] = m_values[PopulationDeviation2] = 1;
+  m_values[ConfidenceLevel] = 0.95;
+  m_values[Categories] = m_values[Rows] = m_values[Columns] = 2;
+  for (int i = 0; i < MaxNumberOfCategories; i++) {
+    m_values[Expected0 + i] = 1; // a zero expected count is not allowed
   }
 }
 
